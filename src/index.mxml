@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   pageTitle="FlexUpdateApp"
+			   creationComplete="application_creationCompleteHandler(event)" xmlns:view="view.*">
+	<fx:Style source="styles/estilos.css"/>
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import view.ViewDir;
+			
+			private var cookie:SharedObject = SharedObject.getLocal('UpdateApp');
+			[Bindable] 
+			public var titulo:String = "FlexUpdateApp - versão 2.28";
+			[Bindable] 
+			private var descricao:String = "Gerador de atualizações dos sistemas da IAutomate.";
+			[Bindable]
+			private var arquivos:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var paths:Array = new Array(), names:Array = new Array();
+			[Bindable]
+			private var pacote:String = "";
+			
+			protected function application_creationCompleteHandler(event:FlexEvent):void
+			{
+				if(cookie.data.hasOwnProperty('dir') && cookie.data.hasOwnProperty('inicial') && cookie.data.hasOwnProperty('final') && cookie.data.hasOwnProperty('tipos'))
+				{
+					textInputDiretorio.text = cookie.data.dir; 
+					dateFieldInicial.text = cookie.data.inicial;
+					dateFieldFinal.text = cookie.data.final; 
+					textInputTipos.text = cookie.data.tipos;
+					checkBoxSalvar.selected = true;
+				}
+			}
+			protected function buttonSelecionar_clickHandler(event:MouseEvent):void
+			{
+				var dir:ViewDir = new ViewDir;
+				PopUpManager.addPopUp(dir, this, true);
+				PopUpManager.centerPopUp(dir);
+				
+			}
+			protected function buttonProcurar_clickHandler(event:MouseEvent):void
+			{
+				checkBoxSalvar_clickHandler();
+				if(textInputDiretorio.text == "")
+					Alert.show("Insira ou selecione um diretório para procurar !!!", "ERRO");
+				else if(dateFieldInicial.text == "")
+					Alert.show("Selecione a data inicial para procurar !!!", "ERRO");
+				else if(dateFieldFinal.text == "")
+					Alert.show("Selecione a data final para procurar !!!", "ERRO");
+				else
+					remoteUpdate.getFileList("../../../"+textInputDiretorio.text, textInputTipos.text.toLowerCase().split(" "), dateFieldInicial.text, dateFieldFinal.text)
+			}
+			protected function remote_faultHandler(event:FaultEvent):void
+			{
+				Alert.show("Code("+event.fault.errorID.toString(10)+"): "+event.fault.faultString + "\nDetalhes:"+ event.fault.faultDetail, "ERRO("+event.fault.faultCode+")");
+			}
+			protected function getFileList_resultHandler(event:ResultEvent):void
+			{
+				arquivos = new ArrayCollection(event.result as Array);
+			}
+			protected function textInputTipos_focusOutHandler(event:FocusEvent):void
+			{
+				if(textInputTipos.text == "")
+					textInputTipos.text = "*";
+			}
+			protected function buttonGerarUpdate_clickHandler(event:MouseEvent):void
+			{
+				var i:int;
+				paths = new Array();
+				names = new Array();
+				var dir:String, name:String, selecteds:Array = dataGridArquivos.selectedItems;
+				if(selecteds.length > 0)
+				{
+					for(i=0; i<selecteds.length; i++)
+					{
+						dir = selecteds[i].dir;
+						name = selecteds[i].name;
+						paths.push(dir+name);
+						names.push(dir.replace("../../../"+textInputDiretorio.text+"/", "")+name);
+					}
+				} else
+				{
+					for(i=0; i<arquivos.length; i++)
+					{
+						dir = arquivos.getItemAt(i).dir;
+						name = arquivos.getItemAt(i).name;
+						paths.push(dir+name);
+						names.push(dir.replace("../../../"+textInputDiretorio.text+"/", "")+name);
+					}
+				}
+				pacote = "update";
+				if(checkBoxConfiguracao.selected)
+					remoteUpdate.getConfig(textInputDiretorio.text);
+				else
+					remoteUpdate.createUpdate(pacote, paths, names);
+			}
+			protected function getConfig_resultHandler(event:ResultEvent):void
+			{
+				pacote = event.result as String;
+				remoteUpdate.createUpdate(pacote, paths, names);
+			}
+			protected function createUpdate_resultHandler(event:ResultEvent):void
+			{
+				if(event.result == true)
+				{
+					buttonBaixarUpdate.enabled = true;
+					Alert.show("O update foi gerado com sucesso !!!", "OK");
+				} else
+					Alert.show("O update não foi gerado com sucesso !!! ("+event.result+")", "ERRO"); 
+			}
+			protected function buttonBaixarUpdate_clickHandler(event:MouseEvent):void
+			{
+				var update:FileReference = new FileReference();
+				update.download(new URLRequest("php/temp/"+pacote+".zip"));
+			}
+			protected function checkBoxSalvar_clickHandler():void
+			{
+				if(checkBoxSalvar.selected)
+				{
+					cookie.data.dir = textInputDiretorio.text;
+					cookie.data.inicial = dateFieldInicial.text;
+					cookie.data.final = dateFieldFinal.text;
+					cookie.data.tipos = textInputTipos.text;
+					cookie.flush();
+				}
+				else
+				{
+					cookie.clear();
+				}
+			}
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<s:RemoteObject endpoint="php/amf/index.php" 
+						id="remoteUpdate" 
+						source="update" 
+						destination="update"
+						showBusyCursor="true"
+						fault="remote_faultHandler(event)">
+			<s:method name="getFileList" result="getFileList_resultHandler(event)"/>
+			<s:method name="getConfig" result="getConfig_resultHandler(event)"/>
+			<s:method name="createUpdate" result="createUpdate_resultHandler(event)"/>
+		</s:RemoteObject>
+	</fx:Declarations>
+	<s:controlBarContent>
+		<mx:HBox width="100%" verticalAlign="middle" horizontalAlign="center">
+			<s:Image id="imageLogo" source="@Embed(source='assets/icon_048.png')"/>
+			<mx:VBox>
+				<s:Label text="{titulo}"
+						 fontSize="18" />
+				<s:Label text="{descricao}" 
+						 fontSize="12" />
+			</mx:VBox>
+		</mx:HBox>
+	</s:controlBarContent>
+	<mx:VBox width="100%" height="100%" paddingBottom="10" paddingLeft="10" paddingRight="10" paddingTop="10">
+		<mx:Form>
+			<mx:FormItem label="Diretório da Aplicação:">
+				<mx:HBox>
+					<s:TextInput id="textInputDiretorio" widthInChars="20"/>
+					<s:Button id="buttonSelecionar" label="Selecionar" click="buttonSelecionar_clickHandler(event)" 
+							  icon="@Embed(source='assets/select-024.png')"
+							  toolTip="Selecione o diretório que deseja procurar os arquivos."/>
+				</mx:HBox>
+			</mx:FormItem>
+			<mx:FormItem label="Data Inicial:">
+				<mx:HBox>
+					<mx:DateField id="dateFieldInicial" width="140" formatString="DD/MM/YYYY"/>
+					<view:ButtonInfo toolTip="Selecione a data inicial de modificação dos arquivos.Ex.: dd/mm/yyyy (Clique para inserir a data de ontem)"
+									 click="{var dt:Date = new Date(); dt.date--; dateFieldInicial.selectedDate = dt;}"/>
+				</mx:HBox>
+			</mx:FormItem>
+			<mx:FormItem label="Data Final:">
+				<mx:HBox>
+					<mx:DateField id="dateFieldFinal" width="140" formatString="DD/MM/YYYY"/>
+					<view:ButtonInfo toolTip="Selecione a data final de modificação dos arquivos.Ex.: dd/mm/yyyy (Clique para inserir a data de hoje)"
+									 click="{dateFieldFinal.selectedDate = new Date()}"/>
+				</mx:HBox>
+			</mx:FormItem>
+			<mx:FormItem label="Tipos de Arquivos:">
+				<mx:HBox>
+					<s:TextInput id="textInputTipos" widthInChars="20" text="*" focusOut="textInputTipos_focusOutHandler(event)"/>	
+					<view:ButtonInfo toolTip="Entre com os tipos de arquivos desejado separados por espaços ou * para todos os tipos. Ex.: swf xml php (Clique para inserir o exemplo)"
+									 click="{textInputTipos.text = 'swf xml php'}"/>
+				</mx:HBox>
+			</mx:FormItem>
+			<mx:FormItem label="Arquivo de Configuração ?">
+				<s:CheckBox id="checkBoxConfiguracao" toolTip="Utilizar o arquivo de configuração para inserir no nome do pacote." selected="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="Salvar ?">
+				<s:CheckBox id="checkBoxSalvar" click="checkBoxSalvar_clickHandler()" toolTip="Salvar os dados de acesso em um cookie." />
+			</mx:FormItem>
+		</mx:Form>
+		<mx:HBox width="100%" verticalAlign="middle">
+			<s:Button id="buttonProcurar" label="Procurar Arquivos" click="buttonProcurar_clickHandler(event)" 
+					  icon="@Embed(source='assets/search-024.png')"
+					  toolTip="Procura por arquivos com as configurações indicadas."/>
+			<s:Spacer width="100%"/>
+			<s:Button id="buttonGerarUpdate" label="Gerar Pacote de Update" click="buttonGerarUpdate_clickHandler(event)" 
+					  icon="@Embed(source='assets/update_generate-024.png')" enabled="{arquivos.length != 0}"
+					  toolTip="Gera o pacote de update com os arquivos selecionados ou todos os arquivos listados."/>
+		</mx:HBox>
+		<mx:DataGrid id="dataGridArquivos" width="100%" height="100%" dataProvider="{arquivos}" allowMultipleSelection="true">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Nome" width="300" dataField="name"/>
+				<mx:DataGridColumn headerText="Caminho" dataField="dir"/>
+				<mx:DataGridColumn headerText="Tamanho" width="100" dataField="size" textAlign="center"/>
+				<mx:DataGridColumn headerText="Tipo" width="80" dataField="type" textAlign="center"/>
+				<mx:DataGridColumn headerText="Alteração" width="220" dataField="lastmod" textAlign="center"/>
+			</mx:columns>
+		</mx:DataGrid>	
+		<mx:HBox width="100%" verticalAlign="middle">
+			<s:Label text="Foram encontrados {arquivos.length} arquivos."/>
+			<s:Spacer width="100%"/>
+			<s:Button id="buttonBaixarUpdate" label="Baixar Pacote de Update" click="buttonBaixarUpdate_clickHandler(event)" 
+					  enabled="false" icon="@Embed(source='assets/update_download-024.png')"
+					  toolTip="Baixa o pacote de arquivos gerado."/>
+		</mx:HBox>
+	</mx:VBox>
+</s:Application>
