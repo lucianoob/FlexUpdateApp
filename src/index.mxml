@@ -14,20 +14,25 @@
 			import mx.managers.PopUpManager;
 			import mx.rpc.events.FaultEvent;
 			import mx.rpc.events.ResultEvent;
+			import mx.utils.ObjectUtil;
 			
 			import view.ViewDir;
 			
 			private var cookie:SharedObject = SharedObject.getLocal('UpdateApp');
 			[Bindable] 
-			public var titulo:String = "FlexUpdateApp - versão 2.28";
+			public var titulo:String = "FlexUpdateApp";
+			[Bindable]
+			private var versao:String = "v3.43";
 			[Bindable] 
-			private var descricao:String = "Gerador de atualizações dos sistemas da IAutomate.";
+			private var descricao:String = "Gerador de atualizações dos sistemas da iAutomate.";
 			[Bindable]
 			private var arquivos:ArrayCollection = new ArrayCollection();
 			[Bindable]
 			private var paths:Array = new Array(), names:Array = new Array();
 			[Bindable]
 			private var pacote:String = "";
+			[Bindable]
+			public var fileUpdate:String = "";
 			
 			protected function application_creationCompleteHandler(event:FlexEvent):void
 			{
@@ -57,7 +62,7 @@
 				else if(dateFieldFinal.text == "")
 					Alert.show("Selecione a data final para procurar !!!", "ERRO");
 				else
-					remoteUpdate.getFileList("../../../"+textInputDiretorio.text, textInputTipos.text.toLowerCase().split(" "), dateFieldInicial.text, dateFieldFinal.text)
+					remoteUpdate.getFileList("../../"+textInputDiretorio.text, textInputTipos.text.toLowerCase().split(" "), dateFieldInicial.text, dateFieldFinal.text)
 			}
 			protected function remote_faultHandler(event:FaultEvent):void
 			{
@@ -85,7 +90,7 @@
 						dir = selecteds[i].dir;
 						name = selecteds[i].name;
 						paths.push(dir+name);
-						names.push(dir.replace("../../../"+textInputDiretorio.text+"/", "")+name);
+						names.push(dir.replace("../../"+textInputDiretorio.text+"/", "")+name);
 					}
 				} else
 				{
@@ -94,7 +99,7 @@
 						dir = arquivos.getItemAt(i).dir;
 						name = arquivos.getItemAt(i).name;
 						paths.push(dir+name);
-						names.push(dir.replace("../../../"+textInputDiretorio.text+"/", "")+name);
+						names.push(dir.replace("../../"+textInputDiretorio.text+"/", "")+name);
 					}
 				}
 				pacote = "update";
@@ -110,17 +115,21 @@
 			}
 			protected function createUpdate_resultHandler(event:ResultEvent):void
 			{
-				if(event.result == true)
+				var arrResult:Object = event.result as Object;
+				//Alert.show(ObjectUtil.toString(event.result));
+				if(arrResult["return"] == true)
 				{
+					fileUpdate = "Arquivo: "+arrResult["name"]+" | Tamanho: "+arrResult["size"]+" | Data: "+arrResult["lastmod"];
 					buttonBaixarUpdate.enabled = true;
 					Alert.show("O update foi gerado com sucesso !!!", "OK");
 				} else
-					Alert.show("O update não foi gerado com sucesso !!! ("+event.result+")", "ERRO"); 
+					Alert.show("O update não foi gerado com sucesso !!! ("+arrResult["return"]+")", "ERRO"); 
 			}
 			protected function buttonBaixarUpdate_clickHandler(event:MouseEvent):void
 			{
-				var update:FileReference = new FileReference();
-				update.download(new URLRequest("php/temp/"+pacote+".zip"));
+				Alert.show("Esta função está desabilitada", "AVISO");
+				//var update:FileReference = new FileReference();
+				//update.download(new URLRequest("php/temp/"+pacote+".zip"));
 			}
 			protected function checkBoxSalvar_clickHandler():void
 			{
@@ -137,6 +146,14 @@
 					cookie.clear();
 				}
 			}
+			protected function imageAbout_clickHandler(event:MouseEvent):void {
+				var sobre:about = new about();
+				sobre.titulo = titulo;
+				sobre.versao = versao;
+				sobre.descricao = descricao;
+				PopUpManager.addPopUp(sobre, this, true);
+				PopUpManager.centerPopUp(sobre);
+			}
 		]]>
 	</fx:Script>
 	<fx:Declarations>
@@ -151,22 +168,24 @@
 			<s:method name="createUpdate" result="createUpdate_resultHandler(event)"/>
 		</s:RemoteObject>
 	</fx:Declarations>
-	<s:controlBarContent>
+	<mx:VBox width="100%" height="100%" paddingBottom="10" paddingLeft="10" paddingRight="10" paddingTop="10" horizontalAlign="center">
 		<mx:HBox width="100%" verticalAlign="middle" horizontalAlign="center">
 			<s:Image id="imageLogo" source="@Embed(source='assets/icon_048.png')"/>
 			<mx:VBox>
-				<s:Label text="{titulo}"
-						 fontSize="18" />
+				<mx:HBox>
+					<s:Label text="{titulo} {versao}" fontSize="18"/>
+					<mx:Image source="@Embed(source='assets/info-icon.png')" buttonMode="true"
+							  toolTip="Saiba mais sobre o FlexUpdateApp." click="imageAbout_clickHandler(event)"/>
+				</mx:HBox>
 				<s:Label text="{descricao}" 
 						 fontSize="12" />
 			</mx:VBox>
 		</mx:HBox>
-	</s:controlBarContent>
-	<mx:VBox width="100%" height="100%" paddingBottom="10" paddingLeft="10" paddingRight="10" paddingTop="10">
+		<mx:HRule width="100%"/>
 		<mx:Form>
 			<mx:FormItem label="Diretório da Aplicação:">
 				<mx:HBox>
-					<s:TextInput id="textInputDiretorio" widthInChars="20"/>
+					<s:TextInput id="textInputDiretorio" widthInChars="20" text="example" editable="false"/>
 					<s:Button id="buttonSelecionar" label="Selecionar" click="buttonSelecionar_clickHandler(event)" 
 							  icon="@Embed(source='assets/select-024.png')"
 							  toolTip="Selecione o diretório que deseja procurar os arquivos."/>
@@ -174,21 +193,21 @@
 			</mx:FormItem>
 			<mx:FormItem label="Data Inicial:">
 				<mx:HBox>
-					<mx:DateField id="dateFieldInicial" width="140" formatString="DD/MM/YYYY"/>
+					<mx:DateField id="dateFieldInicial" width="140" formatString="DD/MM/YYYY" text="21/04/2016" editable="false"/>
 					<view:ButtonInfo toolTip="Selecione a data inicial de modificação dos arquivos.Ex.: dd/mm/yyyy (Clique para inserir a data de ontem)"
 									 click="{var dt:Date = new Date(); dt.date--; dateFieldInicial.selectedDate = dt;}"/>
 				</mx:HBox>
 			</mx:FormItem>
 			<mx:FormItem label="Data Final:">
 				<mx:HBox>
-					<mx:DateField id="dateFieldFinal" width="140" formatString="DD/MM/YYYY"/>
+					<mx:DateField id="dateFieldFinal" width="140" formatString="DD/MM/YYYY" text="22/04/2016" editable="false"/>
 					<view:ButtonInfo toolTip="Selecione a data final de modificação dos arquivos.Ex.: dd/mm/yyyy (Clique para inserir a data de hoje)"
 									 click="{dateFieldFinal.selectedDate = new Date()}"/>
 				</mx:HBox>
 			</mx:FormItem>
 			<mx:FormItem label="Tipos de Arquivos:">
 				<mx:HBox>
-					<s:TextInput id="textInputTipos" widthInChars="20" text="*" focusOut="textInputTipos_focusOutHandler(event)"/>	
+					<s:TextInput id="textInputTipos" widthInChars="20" text="*" editable="false" focusOut="textInputTipos_focusOutHandler(event)"/>	
 					<view:ButtonInfo toolTip="Entre com os tipos de arquivos desejado separados por espaços ou * para todos os tipos. Ex.: swf xml php (Clique para inserir o exemplo)"
 									 click="{textInputTipos.text = 'swf xml php'}"/>
 				</mx:HBox>
@@ -221,9 +240,13 @@
 		<mx:HBox width="100%" verticalAlign="middle">
 			<s:Label text="Foram encontrados {arquivos.length} arquivos."/>
 			<s:Spacer width="100%"/>
+			<s:Label text="{fileUpdate}"/>
+			<s:Spacer width="20"/>
 			<s:Button id="buttonBaixarUpdate" label="Baixar Pacote de Update" click="buttonBaixarUpdate_clickHandler(event)" 
 					  enabled="false" icon="@Embed(source='assets/update_download-024.png')"
 					  toolTip="Baixa o pacote de arquivos gerado."/>
 		</mx:HBox>
+		<mx:HRule width="100%"/>
+		<s:Label text="Esta versão é uma demonstração e algumas funcionalidades estão limitadas." color="red"/>
 	</mx:VBox>
 </s:Application>

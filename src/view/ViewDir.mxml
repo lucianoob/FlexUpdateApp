@@ -39,7 +39,8 @@
 			}
 			protected function listDirs_changeHandler(event:IndexChangeEvent):void
 			{
-				FlexGlobals.topLevelApplication.textInputDiretorio.text = listDirs.selectedItem.name;
+				Alert.show("Esta função está desabilitada", "AVISO");
+				//FlexGlobals.topLevelApplication.textInputDiretorio.text = listDirs.selectedItem.name;
 				PopUpManager.removePopUp(this);
 			}
 			protected function titlewindow_closeHandler(event:CloseEvent):void

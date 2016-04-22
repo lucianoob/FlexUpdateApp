@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<informacoes>
+	<sistema> 
+		<nome>Teste</nome>
+		<empresa>Empresa de Teste</empresa>
+		<email>teste@teste.com.br</email>
+		<versao>v1.10</versao>
+		<desenvolvedor>Luciano Oliveira Borges</desenvolvedor>
+		<site>http://teste.com.br/erp/</site>
+		<client>http://www.teste.com.br/erps/clients/Setup-ErpClient.air</client>
+		<suporte>IAutomate - Integração de Sistemas</suporte>
+		<email_suporte>suporte@iautomate.com.br</email_suporte>
+	</sistema>
+</informacoes>
